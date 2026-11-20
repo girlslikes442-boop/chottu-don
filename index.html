@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#100608">
+<title>Chottu Don 🗿</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;
+ font-family:Arial,sans-serif;
+ background:radial-gradient(circle at top,#52101b,#100608 65%);
+ color:white;
+ text-align:center;
+ min-height:100vh;
+}
+header{padding:25px 10px}
+h1{color:#ff263e;font-size:32px;margin:5px}
+.sub{color:#ff9ba6;letter-spacing:3px}
+.container{padding:12px;max-width:500px;margin:auto}
+.card{
+ background:#211015;
+ border:1px solid #81202f;
+ border-radius:18px;
+ padding:20px 10px;
+ margin-bottom:14px;
+ box-shadow:0 0 15px #5b101b55;
+}
+.steps{font-size:55px;font-weight:bold;color:#ff3047}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.value{font-size:25px;color:#ff4357;font-weight:bold}
+.label{font-size:12px;color:#ffb5bc;margin-top:7px}
+button{
+ border:0;border-radius:12px;padding:15px;
+ font-size:15px;font-weight:bold;
+ background:#ed263e;color:white;
+ margin:5px;cursor:pointer;
+}
+button:disabled{opacity:.4}
+.secondary{background:#45121c}
+#status{color:#ff9ba6;font-size:14px}
+#location{font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+footer{padding:20px;color:#ff8492;font-size:12px}
+</style>
+</head>
+
+<body>
+<header>
+<h1>CHOTTU DON 🗿</h1>
+<div class="sub">RUN • WALK • TRACK</div>
+</header>
+
+<div class="container">
+
+<div class="card">
+<div class="label">TOTAL STEPS</div>
+<div class="steps" id="steps">0</div>
+<div id="status">Ready to start?</div>
+</div>
+
+<div class="grid">
+<div class="card">
+<div class="value" id="timer">00:00</div>
+<div class="label">TIME</div>
+</div>
+<div class="card">
+<div class="value" id="distance">0.00 KM</div>
+<div class="label">DISTANCE</div>
+</div>
+<div class="card">
+<div class="value" id="speed">0.0</div>
+<div class="label">SPEED KM/H</div>
+</div>
+<div class="card">
+<div class="value" id="calories">0</div>
+<div class="label">CALORIES (EST.)</div>
+</div>
+</div>
+
+<div class="card">
+<h3 style="color:#ff3047">RUNNING CONTROL</h3>
+<button id="start" onclick="startRun()">▶ START</button>
+<button id="pause" class="secondary" onclick="pauseRun()" disabled>Ⅱ PAUSE</button>
+<button id="resume" class="secondary" onclick="resumeRun()" disabled>▶ RESUME</button>
+<button id="stop" onclick="stopRun()" disabled>■ STOP</button>
+</div>
+
+<div class="card">
+<h3 style="color:#ff3047">📍 LIVE GPS LOCATION</h3>
+<div id="location">Location not started</div>
+<p class="label">GPS accuracy depends on your phone and surroundings.</p>
+</div>
+
+<div class="card">
+<h3 style="color:#ff3047">DAILY GOAL</h3>
+<div class="value" id="goal">0 / 5000</div>
+<div style="background:#45121c;border-radius:20px;height:12px">
+<div id="progress" style="background:#ff3047;width:0%;height:12px;border-radius:20px"></div>
+</div>
+</div>
+
+</div>
+
+<footer>CHOTTU DON 🗿 | YOUR FITNESS • YOUR RULES</footer>
+
+<script>
+let steps=0;
+let running=false;
+let paused=false;
+let startTime=0;
+let elapsed=0;
+let timerInterval=null;
+let gpsWatch=null;
+let lastStep=0;
+let lastMagnitude=0;
+let lastPosition=null;
+let totalDistance=0;
+let wakeLock=null;
+
+function update(){
+ document.getElementById("steps").textContent=steps;
+ document.getElementById("goal").textContent=steps+" / 5000";
+ document.getElementById("progress").style.width=
+ Math.min(steps/5000*100,100)+"%";
+ document.getElementById("calories").textContent=
+ Math.round(steps*0.04);
+ document.getElementById("distance").textContent=
+ (totalDistance/1000).toFixed(2)+" KM";
+}
+
+function updateTimer(){
+ let sec=Math.floor((elapsed+Date.now()-startTime)/1000);
+ let min=Math.floor(sec/60);
+ document.getElementById("timer").textContent=
+ String(min).padStart(2,"0")+":"+
+ String(sec%60).padStart(2,"0");
+}
+
+function motionHandler(e){
+ if(!running || paused)return;
+ let a=e.accelerationIncludingGravity;
+ if(!a)return;
+ let mag=Math.sqrt(
+ (a.x||0)**2+(a.y||0)**2+(a.z||0)**2
+ );
+ let now=Date.now();
+ if(mag-lastMagnitude>2.5 && now-lastStep>300){
+   if(lastMagnitude>0){
+    steps++;
+    update();
+   }
+   lastStep=now;
+ }
+ lastMagnitude=mag;
+}
+
+async function startRun(){
+ if(running)return;
+ steps=0;
+ totalDistance=0;
+ elapsed=0;
+ lastPosition=null;
+ lastStep=0;
+ lastMagnitude=0;
+ update();
+
+ if(typeof DeviceMotionEvent!=="undefined" &&
+ typeof DeviceMotionEvent.requestPermission==="function"){
+   try{
+    let p=await DeviceMotionEvent.requestPermission();
+    if(p!=="granted"){
+     alert("Motion permission allow karo.");
+    }
+   }catch(err){}
+ }
+
+ window.addEventListener("devicemotion",motionHandler);
+
+ running=true;
+ paused=false;
+ startTime=Date.now();
+
+ document.getElementById("status").textContent="RUNNING 🔴";
+ document.getElementById("start").disabled=true;
+ document.getElementById("pause").disabled=false;
+ document.getElementById("stop").disabled=false;
+ document.getElementById("resume").disabled=true;
+
+ timerInterval=setInterval(updateTimer,500);
+
+ if("geolocation" in navigator){
+  gpsWatch=navigator.geolocation.watchPosition(
+   position=>{
+    if(!running || paused)return;
+    let lat=position.coords.latitude;
+    let lon=position.coords.longitude;
+    let accuracy=position.coords.accuracy;
+
+    document.getElementById("location").innerHTML=
+    "Latitude: "+lat.toFixed(6)+"<br>"+
+    "Longitude: "+lon.toFixed(6)+"<br>"+
+    "Accuracy: ±"+Math.round(accuracy)+" metres<br>"+
+    '<a style="color:#ff6475" target="_blank" href="https://maps.google.com/?q='+lat+','+lon+'">OPEN IN GOOGLE MAPS</a>';
+
+    if(lastPosition && accuracy<50){
+      let d=getDistance(lastPosition.lat,lastPosition.lon,lat,lon);
+      if(d<100 && d>2)totalDistance+=d;
+      update();
+    }
+    lastPosition={lat,lon};
+   },
+   error=>{
+    document.getElementById("location").textContent=
+    "GPS error: "+error.message;
+   },
+   {enableHighAccuracy:true,maximumAge:0,timeout:20000}
+  );
+ }else{
+  document.getElementById("location").textContent=
+  "GPS not supported";
+ }
+
+ if("wakeLock" in navigator){
+  try{wakeLock=await navigator.wakeLock.request("screen")}catch(e){}
+ }
+}
+
+function getDistance(lat1,lon1,lat2,lon2){
+ const R=6371000;
+ const rad=x=>x*Math.PI/180;
+ let dLat=rad(lat2-lat1);
+ let dLon=rad(lon2-lon1);
+ let a=Math.sin(dLat/2)**2+
+ Math.cos(rad(lat1))*Math.cos(rad(lat2))*
+ Math.sin(dLon/2)**2;
+ return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function pauseRun(){
+ if(!running || paused)return;
+ elapsed+=Date.now()-startTime;
+ paused=true;
+ clearInterval(timerInterval);
+ if(gpsWatch!==null){
+  navigator.geolocation.clearWatch(gpsWatch);
+  gpsWatch=null;
+ }
+ document.getElementById("status").textContent="PAUSED ⏸";
+ document.getElementById("pause").disabled=true;
+ document.getElementById("resume").disabled=false;
+}
+
+function resumeRun(){
+ if(!running || !paused)return;
+ paused=false;
+ startTime=Date.now();
+ timerInterval=setInterval(updateTimer,500);
+ document.getElementById("status").textContent="RUNNING 🔴";
+ document.getElementById("pause").disabled=false;
+ document.getElementById("resume").disabled=true;
+ if("geolocation" in navigator){
+  startGPS();
+ }
+}
+
+function startGPS(){
+ if(gpsWatch!==null)return;
+ gpsWatch=navigator.geolocation.watchPosition(p=>{
+  if(!running || paused)return;
+  let lat=p.coords.latitude,lon=p.coords.longitude;
+  document.getElementById("location").innerHTML=
+  "Latitude: "+lat.toFixed(6)+"<br>Longitude: "+
+  lon.toFixed(6)+"<br>Accuracy: ±"+
+  Math.round(p.coords.accuracy)+" metres";
+  if(lastPosition && p.coords.accuracy<50){
+   let d=getDistance(lastPosition.lat,lastPosition.lon,lat,lon);
+   if(d>2 && d<100)totalDistance+=d;
+   update();
+  }
+  lastPosition={lat,lon};
+ },e=>{
+  document.getElementById("location").textContent=e.message;
+ },{enableHighAccuracy:true,maximumAge:0,timeout:20000});
+}
+
+function stopRun(){
+ if(!running)return;
+ if(!paused)elapsed+=Date.now()-startTime;
+ running=false;
+ paused=false;
+ clearInterval(timerInterval);
+ if(gpsWatch!==null){
+  navigator.geolocation.clearWatch(gpsWatch);
+  gpsWatch=null;
+ }
+ window.removeEventListener("devicemotion",motionHandler);
+ if(wakeLock){wakeLock.release();wakeLock=null;}
+ updateTimer();
+ document.getElementById("status").textContent="RUN COMPLETED 🏁";
+ document.getElementById("start").disabled=false;
+ document.getElementById("pause").disabled=true;
+ document.getElementById("resume").disabled=true;
+ document.getElementById("stop").disabled=true;
+}
+</script>
+</body>
+</html>
