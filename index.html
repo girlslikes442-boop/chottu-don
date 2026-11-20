@@ -24,7 +24,13 @@ body:before{
  position:fixed;
  inset:0;
  background:rgba(0,0,0,.48);
- z-index:-1;
+ z-index:0;
+ pointer-events:none;
+}
+
+header,.container,footer{
+ position:relative;
+ z-index:1;
 }
 
 header{padding:25px 10px}
@@ -45,8 +51,9 @@ h1{
 .container{padding:12px;max-width:500px;margin:auto}
 
 .card{
- background:rgba(15,5,8,.82);
+ background:rgba(15,5,8,.72);
  backdrop-filter:blur(8px);
+ -webkit-backdrop-filter:blur(8px);
  border:1px solid #ff263e;
  border-radius:18px;
  padding:20px 10px;
